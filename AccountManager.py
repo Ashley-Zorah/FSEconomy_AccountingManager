@@ -35,7 +35,7 @@ def configJsonCreate():
     configFile.close()
     print("Config file created succesfully.")
 
-def configJsonImport(userKey,readerKey,managedAccountName,ownedAircraft,ownedAirports):
+def configJsonImport():
     configFile = open("config.json")
     settings = json.load(configFile)
     userKey = settings["User Key"]
@@ -44,7 +44,8 @@ def configJsonImport(userKey,readerKey,managedAccountName,ownedAircraft,ownedAir
     ownedAircraft = settings["Owned Aircraft"]
     ownedAirports = settings["Owned Airports"]
     print("Config imported succesfully")
-    configFile.close() 
+    configFile.close()
+    return userKey,readerKey,managedAccountName,ownedAircraft,ownedAirports
 
 def configJsonModify(configField,configValue):
     print("Function not finished.")
@@ -70,7 +71,7 @@ validInput = False
 #initial boot checks for prior settings, if file doesn't exist one is created
 if os.path.exists("config.json"):
     print("Prior config found. Importing data.")
-    configJsonImport(userKey,readerKey,managedAccountName,ownedAircraft,ownedAirports)
+    userKey,readerKey,managedAccountName,ownedAircraft,ownedAirports = configJsonImport()
     validConfig = configJsonValidate(userKey,readerKey,managedAccountName)
 else:
     while validInput == False:
@@ -86,3 +87,7 @@ else:
             validConfig, validConfigMessage = configJsonValidate(userKey,readerKey,managedAccountName)
 
 if validConfig == False:
+    if validConfigMessage == "Invalid User Key":
+        print("Invalid User Key in config file. Please verify and enter the correct User Access Key. \n")
+        newKey = input()
+        configJsonModify(userKey,newKey)
