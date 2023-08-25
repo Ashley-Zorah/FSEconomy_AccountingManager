@@ -21,8 +21,10 @@ def configJsonCreate():
     managedAccountName = input("Please enter the name of the account to be managed as it appears in the Home -> Data feeds section")
     airports = input("Please enter the list of owned airports, seperated by a comma. Example: EGCC,EGKK,EGLL")
     ownedAirports = airports.split(",")
+    ownedAirports.sort()
     aircraft = input("Please enter the registrations of any owned aircraft seperated by a comma. Example: G-FYUK,EI-KHJ,N8766")
     ownedAircraft = aircraft.split(",")
+    ownedAircraft.sort()
     userSettings = {
         "User Key":userKey,
         "Reader Key":readerKey,
@@ -35,6 +37,12 @@ def configJsonCreate():
     configFile.close()
     print("Config file created succesfully.")
 
+def fubar():
+    print("You are having a bad day if you see this message. Go to the Github page for this program and raise an issue. - Ashley-Zorah")
+    print("Program will now self close after 3 seconds.")
+    time.sleep(3)
+    os._exit()
+
 def configJsonImport():
     configFile = open("config.json")
     settings = json.load(configFile)
@@ -42,13 +50,34 @@ def configJsonImport():
     readerKey = settings["Reader Key"]  
     managedAccountName = settings["Managed Account"]
     ownedAircraft = settings["Owned Aircraft"]
+    ownedAircraft.sort()
     ownedAirports = settings["Owned Airports"]
+    ownedAirports.sort()
     print("Config imported succesfully")
     configFile.close()
     return userKey,readerKey,managedAccountName,ownedAircraft,ownedAirports
 
-def configJsonModify(configField,configValue):
-    print("Function not finished.")
+def configJsonModify(configField,configValue,modifier="remove"):
+    configFile = open("config.json")
+    settings = json.load(configFile)
+    configFile.close()
+    if type(configValue) == list:
+        temp = settings[configField]
+        if modifier == "remove":
+            for value in configValue:
+                temp.remove(value)
+        elif modifier == "add":
+            for value in configValue:
+                temp.append(value)
+        else:
+            fubar()
+        temp.sort()
+        settings[configField] = temp
+    else:
+        settings[configField] = configValue
+    configFile = open("config.json","w")
+    json.dump(settings,configFile)
+    configFile.close()
 
 def configJsonValidate(userKey,readerKey,managedAccountName):
     validation = True
@@ -86,8 +115,24 @@ else:
             configJsonCreate()
             validConfig, validConfigMessage = configJsonValidate(userKey,readerKey,managedAccountName)
 
-if validConfig == False:
+while validConfig == False:
     if validConfigMessage == "Invalid User Key":
         print("Invalid User Key in config file. Please verify and enter the correct User Access Key. \n")
         newKey = input()
-        configJsonModify(userKey,newKey)
+        configJsonModify("User Key",newKey)
+        userKey,readerKey,managedAccountName,ownedAircraft,ownedAirports = configJsonImport()
+        validConfig, validConfigMessage = configJsonValidate(userKey,readerKey,managedAccountName)
+    elif validConfigMessage == "Invalid Account Key":
+        print("Invalid key for the account to be managed. Please verify and enter the correct Access Key for the account to be managed. \n")
+        newKey = input()
+        configJsonModify("Reader Key",newKey)
+        userKey,readerKey,managedAccountName,ownedAircraft,ownedAirports = configJsonImport()
+        validConfig, validConfigMessage = configJsonValidate(userKey,readerKey,managedAccountName)
+    elif validConfigMessage == "Invalid Account Key":
+        print("Invalid key for the account to be managed. Please verify and enter the correct Access Key for the account to be managed. \n")
+        newKey = input()
+        configJsonModify("Reader Key",newKey)
+        userKey,readerKey,managedAccountName,ownedAircraft,ownedAirports = configJsonImport()
+        validConfig, validConfigMessage = configJsonValidate(userKey,readerKey,managedAccountName)
+    else:
+        fubar()
