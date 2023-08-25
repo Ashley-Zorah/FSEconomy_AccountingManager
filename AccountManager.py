@@ -5,6 +5,7 @@ import os
 import json
 import csv
 import time
+import requests
 
 #global variables to go here
 userSettings = {}
@@ -13,16 +14,35 @@ readerKey = ""
 managedAccountName = ""
 ownedAirports = []
 ownedAircraft = []
+apiURL = "https://server.fseconomy.net/data?userkey={}&format=csv&query=payments&search=monthyear&readaccesskey={}&month={}&year={}"
+monthLookup = {
+    "january":1,
+    "february":2,
+    "march":3,
+    "april":4,
+    "may":5,
+    "june":6,
+    "july":7,
+    "august":8,
+    "september":9,
+    "october":10,
+    "november":11,
+    "december":12,
+}
+doContinue = False
+validConfig = False
+validConfigMessage = ""
+financeData = {}
 
 #functions to go here
 def configJsonCreate():
-    userKey = input("Please enter the Access Key of your FSE account from the Home -> Data feeds section.")
-    readerKey = input("Please enter the Access Key of the account you would like to be managed from the Home -> Data feeds section")
-    managedAccountName = input("Please enter the name of the account to be managed as it appears in the Home -> Data feeds section")
-    airports = input("Please enter the list of owned airports, seperated by a comma. Example: EGCC,EGKK,EGLL")
+    userKey = input("Please enter the Access Key of your FSE account from the Home -> Data feeds section. \n")
+    readerKey = input("Please enter the Access Key of the account you would like to be managed from the Home -> Data feeds section \n")
+    managedAccountName = input("Please enter the name of the account to be managed as it appears in the Home -> Data feeds section \n")
+    airports = input("Please enter the list of owned airports, seperated by a comma. Example: EGCC,EGKK,EGLL \n")
     ownedAirports = airports.split(",")
     ownedAirports.sort()
-    aircraft = input("Please enter the registrations of any owned aircraft seperated by a comma. Example: G-FYUK,EI-KHJ,N8766")
+    aircraft = input("Please enter the registrations of any owned aircraft seperated by a comma. Example: G-FYUK,EI-KHJ,N8766 \n")
     ownedAircraft = aircraft.split(",")
     ownedAircraft.sort()
     userSettings = {
@@ -35,7 +55,7 @@ def configJsonCreate():
     configFile = open("config.json","w")
     json.dump(userSettings,configFile)
     configFile.close()
-    print("Config file created succesfully.")
+    print("Config file created succesfully. \n")
 
 def fubar():
     print("You are having a bad day if you see this message. Go to the Github page for this program and raise an issue. - Ashley-Zorah")
@@ -53,7 +73,7 @@ def configJsonImport():
     ownedAircraft.sort()
     ownedAirports = settings["Owned Airports"]
     ownedAirports.sort()
-    print("Config imported succesfully")
+    print("Config imported succesfully \n")
     configFile.close()
     return userKey,readerKey,managedAccountName,ownedAircraft,ownedAirports
 
@@ -86,7 +106,7 @@ def configJsonValidate(userKey,readerKey,managedAccountName):
         validation = False
         validationMessage = "Invalid User Key"
     elif readerKey == "" or len(readerKey) != 16:
-        validation = False#
+        validation = False
         validationMessage = "Invalid Account Key"
     elif managedAccountName == "":
         validation = False
@@ -136,3 +156,61 @@ while validConfig == False:
         validConfig, validConfigMessage = configJsonValidate(userKey,readerKey,managedAccountName)
     else:
         fubar()
+while doContinue == False:
+    print(""" The name of the managed account is {}.
+        Your ownend aircraft are {}
+        Your owned airports are {}
+        """.format(managedAccountName,ownedAircraft,ownedAirports))
+    x = input("Is this correct? \n")
+    if x.upper() == "N":
+        y = input("""Please select one of the following values to modify:
+                1 - Name of the Managed Account
+                2 - The list of owned aircraft
+                3 - The list of owned airports
+                """)
+        if y == 1:
+            newValue = input("Please enter the name of the account to be managed as it appears in the Home -> Data feeds section \n")
+            configJsonModify("Reader Key",newKey)
+            userKey,readerKey,managedAccountName,ownedAircraft,ownedAirports = configJsonImport()
+            validConfig, validConfigMessage = configJsonValidate(userKey,readerKey,managedAccountName)
+        elif y == 2:
+            addRemove = input("Do you wish to add or remove aircraft from this list? {}".format(ownedAircraft))
+            temp = input("Please enter all aircraft registrations to be added or removed, separated by a comma. Example: G-FYUK,EIKHJ,N8766 \n")
+            aircraftList = temp.split(",")
+            configJsonModify("Owned Aircraft",aircraftList)
+        elif y == 3:
+            addRemove = input("Do you wish to add or remove aircraft from this list? {}".format(ownedAircraft))
+            temp = input("Please enter all aircraft registrations to be added or removed, separated by a comma. Example: EGCC,EGKK,EGLL \n")
+            airportList = temp.split(",")
+            configJsonModify("Owned Airports",airportList)
+    else:
+        doContinue = True
+
+x = input("Please enter the name of the month you want to get the data for. \n")
+requestedMonth = monthLookup[x.lower()]
+requestedYear = input("Please enter the year you want to get the data for. \n")
+requestURL = apiURL.format(userKey,readerKey,requestedMonth,requestedYear)
+
+print("Fetching data, Please wait.")
+response = requests.request("GET",requestURL)
+
+responseTXT = response.text
+
+response = open("response.csv","w")
+response.write(responseTXT)
+response.close()
+
+with open("response.csv") as responseCSV:
+    responseImport = csv.DictReader(responseCSV)
+    for row in responseImport:
+        paymentID = row["Id"]
+        financeData[paymentID] = {
+            "Account From":row["From"],
+            "Account To":row["To"],
+            "Payment Amount":row["Amount"],
+            "Payment Reason":row["Reason"],
+            "Payment FBO":row["Fbo"],
+            "Payment Location":row["Location"],
+            "Aircraft Registration":row["Aircraft"],
+            "Misc Data":row["Comment"]
+        }
