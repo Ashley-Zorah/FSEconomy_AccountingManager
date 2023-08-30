@@ -6,6 +6,8 @@ import json
 import csv
 import time
 import requests
+import numpy as np
+import pandas as pd
 
 #global variables to go here
 userSettings = {}
@@ -113,7 +115,14 @@ def configJsonValidate(userKey,readerKey,managedAccountName):
         validationMessage = "Managed Account Name is empty"
     return validation, validationMessage
 
- 
+def recordCleanup(financeData):
+    recordsToRemove = []
+    for record in financeData:
+        if financeData[record]["Account From"] == managedAccountName and financeData[record]["Account To"] == managedAccountName:
+            recordsToRemove.append(record)
+    for key in recordsToRemove:
+        financeData.pop(key)
+
 #main code, prompts, and input to go here
 validInput = False
 
@@ -135,6 +144,7 @@ else:
             configJsonCreate()
             validConfig, validConfigMessage = configJsonValidate(userKey,readerKey,managedAccountName)
 
+# This should really be a stuck look till both conditions are met. To investigate after processing of data is written
 while validConfig == False:
     if validConfigMessage == "Invalid User Key":
         print("Invalid User Key in config file. Please verify and enter the correct User Access Key. \n")
@@ -192,6 +202,7 @@ requestedYear = input("Please enter the year you want to get the data for. \n")
 requestURL = apiURL.format(userKey,readerKey,requestedMonth,requestedYear)
 
 print("Fetching data, Please wait.")
+# Maybe merge import and clean into one single function? Leaving seperate as is for now to better understand the flow of the program
 response = requests.request("GET",requestURL)
 
 responseTXT = response.text
@@ -214,3 +225,6 @@ with open("response.csv") as responseCSV:
             "Aircraft Registration":row["Aircraft"],
             "Misc Data":row["Comment"]
         }
+
+# Removing transaction going from managed account to the same account
+recordCleanup(financeData)
