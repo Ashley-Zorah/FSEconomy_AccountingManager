@@ -228,3 +228,5 @@ with open("response.csv") as responseCSV:
 
 # Removing transaction going from managed account to the same account
 recordCleanup(financeData)
+
+financeDataFrame = pd.DataFrame(financeData).T
